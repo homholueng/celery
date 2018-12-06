@@ -1,24 +1,22 @@
 .. _guide-tasks:
 
 =====================================================================
-                            任务
+                            Tasks
 =====================================================================
 
-任务（Tasks）是 Celery 中的重要构成模块。
+Tasks are the building blocks of Celery applications.
 
-任务是从任意可调用对象（callable）中创建出来的类。其定义了在调用任务时需要做的事情
-（发送消息）和 worker 收到该消息时需要完成的工作。
+A task is a class that can be created out of any callable. It performs
+dual roles in that it defines both what happens when a task is
+called (sends a message), and what happens when a worker receives that message.
 
-每一个任务类都会带有一个唯一的名称，这个名称会包含在发送出去的消息中，这样 worker 就能
-根据这个名称找到需要被作为任务执行的函数。
+Every task class has a unique name, and this name is referenced in messages
+so the worker can find the right function to execute.
 
-由 Task 发送的消息在 worker 发送 :term:`acknowledged` 信号之前都不会被从队列中删除。
-所以 worker 能够提前获取一部分消息，即使这个 worker 因为某些原因（如断电）被杀掉了，由于
-队列没有收到来自该 worker 的确认信号，所以这些被提前获取的消息不会
-被删除，其他的 worker 还是能够照常的去获取这些消息，直到这些消息因为收到某个 worker 的确
-认信号后被删除。
-
-
+A task message is not removed from the queue
+until that message has been :term:`acknowledged` by a worker. A worker can reserve
+many messages in advance and even if the worker is killed -- by power failure
+or some other reason -- the message will be redelivered to another worker.
 
 Ideally task functions should be :term:`idempotent`: meaning
 the function won't cause unintended effects even if called
@@ -332,7 +330,7 @@ Changing the automatic naming behavior
 .. versionadded:: 4.0
 
 There are some cases when the default automatic naming isn't suitable.
-Consider having many tasks within many different modules::
+Consider you have many tasks within many different modules::
 
     project/
            /__init__.py
@@ -649,7 +647,7 @@ Here's an example using ``retry``:
 The bind argument to the task decorator will give access to ``self`` (the
 task type instance).
 
-The ``exc`` argument is used to pass exception information that's
+The ``exc`` method is used to pass exception information that's
 used in logs, and when storing task results.
 Both the exception and the traceback will
 be available in the task state (if a result backend is enabled).
@@ -1020,7 +1018,7 @@ different strengths and weaknesses (see :ref:`task-result-backends`).
 During its lifetime a task will transition through several possible states,
 and each state may have arbitrary meta-data attached to it. When a task
 moves into a new state the previous state is
-forgotten about, but some transitions can be deduced, (e.g., a task now
+forgotten about, but some transitions can be deducted, (e.g., a task now
 in the :state:`FAILED` state, is implied to have been in the
 :state:`STARTED` state at some point).
 
@@ -1596,7 +1594,7 @@ yourself:
      'celery.chord':
         <@task: celery.chord>}
 
-This is the list of tasks built into Celery. Note that tasks
+This is the list of tasks built-in to Celery. Note that tasks
 will only be registered when the module they're defined in is imported.
 
 The default loader imports any modules listed in the
@@ -1730,10 +1728,10 @@ different :func:`~celery.signature`'s.
 You can read about chains and other powerful constructs
 at :ref:`designing-workflows`.
 
-By default Celery will not allow you to run subtasks synchronously within a task,
-but in rare or extreme cases you might need to do so.
+By default celery will not enable you to run tasks within task synchronously
+in rare or extreme cases you might have to do so.
 **WARNING**:
-enabling subtasks to run synchronously is not recommended!
+enabling subtasks run synchronously is not recommended!
 
 .. code-block:: python
 
@@ -1818,7 +1816,7 @@ system, like `memcached`_.
 State
 -----
 
-Since Celery is a distributed system, you can't know which process, or
+Since celery is a distributed system, you can't know which process, or
 on what machine the task will be executed. You can't even know if the task will
 run in a timely manner.
 
@@ -1905,7 +1903,7 @@ There's a race condition if the task starts executing
 before the transaction has been committed; The database object doesn't exist
 yet!
 
-The solution is to use the ``on_commit`` callback to launch your Celery task
+The solution is to use the ``on_commit`` callback to launch your celery task
 once all transactions have been committed successfully.
 
 .. code-block:: python

@@ -1,12 +1,12 @@
 =====================================
- ``celery.backends.asynchronous``
+ ``celery.backends.async``
 =====================================
 
 .. contents::
     :local:
-.. currentmodule:: celery.backends.asynchronous
+.. currentmodule:: celery.backends.async
 
-.. automodule:: celery.backends.asynchronous
+.. automodule:: celery.backends.async
     :members:
     :undoc-members:
 

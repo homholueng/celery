@@ -1,19 +1,21 @@
 .. _guide-app:
 
 =============
- 实例
+ Application
 =============
 
 .. contents::
     :local:
     :depth: 1
 
-Celery 在使用前必须被实例化，而这个实例被称之为 Celery 应用实例 (或简称为 *app*)。
+The Celery library must be instantiated before use, this instance
+is called an application (or *app* for short).
 
-Celery 实例是线程安全的，因此具有不同配置、组件及任务的多个 Celery 应用
-能够在同一进程空间中共存。
+The application is thread-safe so that multiple Celery applications
+with different configurations, components, and tasks can co-exist in the
+same process space.
 
-让我们先动手创建一个实例：
+Let's create one now:
 
 .. code-block:: pycon
 
@@ -22,21 +24,24 @@ Celery 实例是线程安全的，因此具有不同配置、组件及任务的�
     >>> app
     <Celery __main__:0x100469fd0>
 
-最后一行展示了 Celery 实例的文本表示的内容：
-其中包含了该 Celery 实例的名称 (``Celery``), 
-主模块的名称 (``__main__``), 
-以及该对象的内存地址 (``0x100469fd0``).
+The last line shows the textual representation of the application:
+including the name of the app class (``Celery``), the name of the
+current main module (``__main__``), and the memory address of the object
+(``0x100469fd0``).
 
-主模块名称
-==========
+Main Name
+=========
 
-上一小节打印出来的内容中，只有主模块名称是最重要的，原因如下：
+Only one of these is important, and that's the main module name.
+Let's look at why that is.
 
-当你向 Celery 发送一条执行某个任务的消息时，这条消息中不会包含任务的源码，消息中只会带有任务的
-名称。就像网络中的主机名一样：每个 worker 都会维护一个任务名到其定义函数的映射，这个映射被称为
-*任务注册表（task registry）*。
+When you send a task message in Celery, that message won't contain
+any source code, but only the name of the task you want to execute.
+This works similarly to how host names work on the internet: every worker
+maintains a mapping of task names to their actual functions, called the *task
+registry*.
 
-每当你定义一个任务，Celery 就会将该任务添加到本地的注册表（local registry）中：
+Whenever you define a task, that task will also be added to the local registry:
 
 .. code-block:: pycon
 
@@ -53,15 +58,17 @@ Celery 实例是线程安全的，因此具有不同配置、组件及任务的�
     >>> app.tasks['__main__.add']
     <@task: __main__.add>
 
-在上面的例子中，我们再次看到了 ``__main__``，当 Celery 无法检测该任务属于哪个模块时，其
-会使用主模块的 name 来生成任务的名称。
+and there you see that ``__main__`` again; whenever Celery isn't able
+to detect what module the function belongs to, it uses the main module
+name to generate the beginning of the task name.
 
-这种问题只会在下面两种情况中出现：
+This is only a problem in a limited set of use cases:
 
-    #. 定义任务的模块当前正在被当做主模块运行
-    #. 当前 Celery 实例是在 Python shell（REPL） 环境下创建的
+    #. If the module that the task is defined in is run as a program.
+    #. If the application is created in the Python shell (REPL).
 
-在下面的例子中，定义 task 的模块同样用于调用 :meth:`@worker_main`: 来启动 worker：
+For example here, where the tasks module is also used to start a worker
+with :meth:`@worker_main`:
 
 :file:`tasks.py`:
 
@@ -76,9 +83,9 @@ Celery 实例是线程安全的，因此具有不同配置、组件及任务的�
     if __name__ == '__main__':
         app.worker_main()
 
-当该模块以主模块来运行时，其中定义的 task 名称都会以 "``__main__``" 开头，但是，当该模块
-是被在别的模块中被导入时，其中定义的 task 的名称就会以 "``tasks``"（task 所在模块的真实名称）
-开头命名：
+When this module is executed the tasks will be named starting with "``__main__``",
+but when the module is imported by another process, say to call a task,
+the tasks will be named starting with "``tasks``" (the real name of the module):
 
 .. code-block:: pycon
 
@@ -86,7 +93,7 @@ Celery 实例是线程安全的，因此具有不同配置、组件及任务的�
     >>> add.name
     tasks.add
 
-当然你也可以为更改主模块的名称，示例如下：
+You can specify another name for the main module:
 
 .. code-block:: pycon
 
@@ -103,26 +110,27 @@ Celery 实例是线程安全的，因此具有不同配置、组件及任务的�
 
 .. seealso:: :ref:`task-names`
 
-配置
+Configuration
 =============
 
-Celery 提供了一些选项来让用户定义其行为，你可以通过直接设置实例的属性来修改这些选项，
-也可以使用特定的配置模块来改变这些选项。
+There are several options you can set that'll change how
+Celery works. These options can be set directly on the app instance,
+or you can use a dedicated configuration module.
 
-通过访问实例的 :attr:`@conf` 对象获取 Celery 当前的配置：
+The configuration is available as :attr:`@conf`:
 
 .. code-block:: pycon
 
     >>> app.conf.timezone
     'Europe/London'
 
-你也可以直接修改该对象的属性值来修改配置：
+where you can also set configuration values directly:
 
 .. code-block:: pycon
 
     >>> app.conf.enable_utc = True
 
-或者通过 ``update`` 方法来一次性更新多个配置项：
+or update several keys at once by using the ``update`` method:
 
 .. code-block:: python
 
@@ -131,35 +139,40 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
     ...     timezone='Europe/London',
     ...)
 
-配置对象中包含多个字典对象，这些字典存储了来源不同的配置选项，Celery 会按照以下的顺序来读取某个配置的值：
+The configuration object consists of multiple dictionaries
+that are consulted in order:
 
-    #. 运行时修改
-    #. 配置模块（如果存在的话）
-    #. 默认配置（:mod:`celery.app.defaults`）
+    #. Changes made at run-time.
+    #. The configuration module (if any)
+    #. The default configuration (:mod:`celery.app.defaults`).
 
-而且，Celery 允许你通过 :meth:`@add_defaults` 方法来添加新的默认配置源。
+You can even add new default sources by using the :meth:`@add_defaults`
+method.
 
 .. seealso::
 
-    到 :ref:`Configuration reference <configuration>` 中获取所有
-    可用配置选项及其默认值和详细信息。
+    Go to the :ref:`Configuration reference <configuration>` for a complete
+    listing of all the available settings, and their default values.
 
 ``config_from_object``
 ----------------------
 
-:meth:`@config_from_object` 能够从某个配置对象中加载配置。
+The :meth:`@config_from_object` method loads configuration
+from a configuration object.
 
-这个对象可以是一个模块或是包含有配置属性的任意对象。
+This can be a configuration module, or any object with configuration attributes.
 
-需要注意的是，任何在 :meth:`~@config_from_object` 方法调用前设置的配置都会
-被重置，如果你需要设置一些额外的配置选项，请在调用该方法后进行。
+Note that any configuration that was previously set will be reset when
+:meth:`~@config_from_object` is called. If you want to set additional
+configuration you should do so after.
 
-样例 1: 通过模块名进行配置
+Example 1: Using the name of a module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:meth:`@config_from_object` 方法接收 Python 模块的全限定名，或是 Python 属性
-名，例如 ``"celeryconfig"``, ``"myproj.config.celery"``, or
-``"myproj.config:CeleryConfig"``：
+The :meth:`@config_from_object` method can take the fully qualified
+name of a Python module, or even the name of a Python attribute,
+for example: ``"celeryconfig"``, ``"myproj.config.celery"``, or
+``"myproj.config:CeleryConfig"``:
 
 .. code-block:: python
 
@@ -168,7 +181,7 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
     app = Celery()
     app.config_from_object('celeryconfig')
 
-``celeryconfig`` 模块定义如下：
+The ``celeryconfig`` module may then look like this:
 
 :file:`celeryconfig.py`:
 
@@ -177,17 +190,21 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
     enable_utc = True
     timezone = 'Europe/London'
 
-只要 ``import celeryconfig`` 是合法的，Celery 实例就能够使用该模块下的配置。
+and the app will be able to use it as long as ``import celeryconfig`` is
+possible.
 
-样例 2: 通过模块对象进行配置
+Example 2: Passing an actual module object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-你也可以通过传递一个已经导入的模块对象来进行配置，但这种方式是不推荐的。
+You can also pass an already imported module object, but this
+isn't always recommended.
 
 .. tip::
 
-    推荐使用模块名来进行配置是因为在使用 prefork pool 时，使用模块名称配置实例的方式
-    不会去序列化该模块。如果你遇到了配置问题或是 pickle 错误，请尝试使用模块名进行配置。
+    Using the name of a module is recommended as this means the module does
+    not need to be serialized when the prefork pool is used. If you're
+    experiencing configuration problems or pickle errors then please
+    try using the name of a module instead.
 
 .. code-block:: python
 
@@ -199,7 +216,7 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
     app.config_from_object(celeryconfig)
 
 
-样例 3: 通过类/对象来进行配置
+Example 3:  Using a configuration class/object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
@@ -219,9 +236,11 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
 ``config_from_envvar``
 ----------------------
 
-:meth:`@config_from_envvar` 方法会从环境变量中获取配置模块。
+The :meth:`@config_from_envvar` takes the configuration module name
+from an environment variable
 
-下面的样例展示了如何从名为 :envvar:`CELERY_CONFIG_MODULE`: 的环境变量中加载配置：
+For example -- to load configuration from a module specified in the
+environment variable named :envvar:`CELERY_CONFIG_MODULE`:
 
 .. code-block:: python
 
@@ -234,7 +253,7 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
     app = Celery()
     app.config_from_envvar('CELERY_CONFIG_MODULE')
 
-之后你便能够通过环境变量来指定当前 Celery 实例要加载的配置模块：
+You can then specify the configuration module to use via the environment:
 
 .. code-block:: console
 
@@ -242,51 +261,62 @@ Celery 提供了一些选项来让用户定义其行为，你可以通过直接�
 
 .. _app-censored-config:
 
-配置中的敏感信息
+Censored configuration
 ----------------------
 
-有时候处于调试的目的你可能会将配置选项的值打印出来，但与此同时，你也想从中过滤掉一下敏感
-信息：如密码、API 秘钥、私钥等。
+If you ever want to print out the configuration, as debugging information
+or similar, you may also want to filter out sensitive information like
+passwords and API keys.
 
-Celery 提供了若干个用于展示配置选项的工具函数，其中一个是 :meth:`~celery.app.utils.Settings.humanize`：
+Celery comes with several utilities useful for presenting the configuration,
+one is :meth:`~celery.app.utils.Settings.humanize`:
 
 .. code-block:: pycon
 
     >>> app.conf.humanize(with_defaults=False, censored=True)
 
-该方法会将配置选项以字符串列表的形式返回，默认情况下 :meth:`~celery.app.utils.Settings.humanize`：
-只会返回对默认值进行了修改的配置，若要将所有配置都返回，需要将 ``with_defaults`` 参数设置为 ``True``。
+This method returns the configuration as a tabulated string. This will
+only contain changes to the configuration by default, but you can include the
+built-in default keys and values by enabling the ``with_defaults`` argument.
 
-如果你需要将配置信息以字典的形式进行展示，可以选择 :meth:`~celery.app.utils.Settings.table` 方法：
+If you instead want to work with the configuration as a dictionary, you
+can use the :meth:`~celery.app.utils.Settings.table` method:
 
 .. code-block:: pycon
 
     >>> app.conf.table(with_defaults=False, censored=True)
 
-请注意，Celery 无法剔除掉配置中的所有敏感信息，因为其是通过正则表达式来搜索敏感信息的一些常用命名。如果
-你希望 Celery 绑定剔除掉配置中的敏感信息，你应该根据 Celery 匹配敏感信息的规则来为这些配置项命名。
+Please note that Celery won't be able to remove all sensitive information,
+as it merely uses a regular expression to search for commonly named keys.
+If you add custom settings containing sensitive information you should name
+the keys using a name that Celery identifies as secret.
 
-如果配置名称中包含以下字符串，则 Celery 会认为这些配置中包含敏感信息：
+A configuration setting will be censored if the name contains any of
+these sub-strings:
 
 ``API``, ``TOKEN``, ``KEY``, ``SECRET``, ``PASS``, ``SIGNATURE``, ``DATABASE``
 
-懒加载
+Laziness
 ========
 
-Celery 实例是懒加载的，这意味中不到真正要使用到它的时候，岂不会被加载：
+The application instance is lazy, meaning it won't be evaluated
+until it's actually needed.
 
-创建一个 :class:`@Celery` 实例时会完成以下工作：
+Creating a :class:`@Celery` instance will only do the following:
 
-    #. 创建一个逻辑时钟对象，用于监听事件
-    #. 创建一个任务注册表（task registry）
-    #. 将该实例设置成当前实例（current app），如果 ``set_as_current`` 参数
-       为 ``False``，这一步不会执行
-    #. 调用 :meth:`@on_init` 进行回调（该方法默认实现为空）
+    #. Create a logical clock instance, used for events.
+    #. Create the task registry.
+    #. Set itself as the current app (but not if the ``set_as_current``
+       argument was disabled)
+    #. Call the :meth:`@on_init` callback (does nothing by default).
 
-:meth:`@task` 装饰器并不会在任务定义时就创建该任务，而是将其推迟到任务被使用时
-或是实例最终创建完成后（*finalized*）。
+The :meth:`@task` decorators don't create the tasks at the point when
+the task is defined, instead it'll defer the creation
+of the task to happen either when the task is used, or after the
+application has been *finalized*,
 
-下面的例子很好的说明了在你使用任务或是访问其属性（例子中访问的是 :meth:`repr`）前，该任务都不会被创建：
+This example shows how the task isn't created until
+you use the task, or access an attribute (in this case :meth:`repr`):
 
 .. code-block:: pycon
 
@@ -306,37 +336,43 @@ Celery 实例是懒加载的，这意味中不到真正要使用到它的时候�
     >>> add.__evaluated__()
     True
 
-通过调用 :meth:`@finalize` 方法或是显式的访问 :attr:`@tasks` 属性能够完成实例的最终创建（*Finalization*）。
+*Finalization* of the app happens either explicitly by calling
+:meth:`@finalize` -- or implicitly by accessing the :attr:`@tasks`
+attribute.
 
-这个过程会完成以下工作：
+Finalizing the object will:
 
-    #. 复制必须在 app 之间进行共享的任务
+    #. Copy tasks that must be shared between apps
 
-        所有的任务默认都是可共享的，但如果 task 装饰器
-        中的 ``shared`` 参数被设置为 ``False``，该任务
-        就会成为其绑定的 Celery 实例（app）的私有任务
-    
-    #. 执行所有未执行的 task 装饰器
+        Tasks are shared by default, but if the
+        ``shared`` argument to the task decorator is disabled,
+        then the task will be private to the app it's bound to.
 
-    #. 确保所有任务都绑定到当前实例上（current app)
+    #. Evaluate all pending task decorators.
 
-        将任务绑定到实例上能够让其读取配置中的默认值。
+    #. Make sure all tasks are bound to the current app.
+
+        Tasks are bound to an app so that they can read default
+        values from the configuration.
 
 .. _default-app:
 
 .. topic:: The "default app"
 
-    Celery 并不总是需要创建一个实例，因为旧的版本只有模块层的 API，为了向
-    后兼容，这些旧的 API 一直都会存在，这些旧的 API 会保留到 Celery 5.0。
+    Celery didn't always have applications, it used to be that
+    there was only a module-based API, and for backwards compatibility
+    the old API is still there until the release of Celery 5.0.
 
-    Celery 每次都会创建一个默认的实例，如果用户没有初始化自定义的应用实例，Celery
-    就会使用这个默认的实例。
+    Celery always creates a special app - the "default app",
+    and this is used if no custom application has been instantiated.
 
-    :mod:`celery.task` 用于兼容旧的 API，如果你要使用自定义应用程序，则不应该
-    使用该模块中提供的 API。正确的做法是使用实例中定义的方法。
+    The :mod:`celery.task` module is there to accommodate the old API,
+    and shouldn't be used if you use a custom app. You should
+    always use the methods on the app instance, not the module based API.
 
-    旧的 Task 基类提供了许多用于兼容老版本的功能，其中某些功能可能会与新版本的功能
-    不兼容，两种 Task 的导入方式如下所示：
+    For example, the old Task base class enables many compatibility
+    features where some may be incompatible with newer features, such
+    as task methods:
 
     .. code-block:: python
 
@@ -344,18 +380,21 @@ Celery 实例是懒加载的，这意味中不到真正要使用到它的时候�
 
         from celery import Task        # << NEW base class.
 
-    即使你再使用旧的模块层 API，我们还是推荐你使用新的基类。
+    The new base class is recommended even if you use the old
+    module-based API.
 
 
-实例链
+Breaking the chain
 ==================
 
-虽然能够通过当前应用（current_app）这个对象获取当前实例，但最好的方法是通过
-参数将当前实例传递给其他对象。
+While it's possible to depend on the current app
+being set, the best practice is to always pass the app instance
+around to anything that needs it.
 
-我们将这种行为称之为实例链，因为其根据传递路径形成了一条应用实例链。
+I call this the "app chain", since it creates a chain
+of instances depending on the app being passed.
 
-下面代码中所示的行为是不推荐的：
+The following example is considered bad practice:
 
 .. code-block:: python
 
@@ -366,7 +405,7 @@ Celery 实例是懒加载的，这意味中不到真正要使用到它的时候�
         def run(self):
             app = current_app
 
-正确的做法是使用 ``app`` 参数将当前实例传入：
+Instead it should take the ``app`` as an argument:
 
 .. code-block:: python
 
@@ -375,8 +414,8 @@ Celery 实例是懒加载的，这意味中不到真正要使用到它的时候�
         def __init__(self, app):
             self.app = app
 
-Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实例来保证
-对基于模块的旧 API 的兼容性。
+Internally Celery uses the :func:`celery.app.app_or_default` function
+so that everything also works in the module-based compatibility API
 
 .. code-block:: python
 
@@ -386,8 +425,9 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
         def __init__(self, app=None):
             self.app = app_or_default(app)
 
-你可以在开发环境中设置 :envvar:`CELERY_TRACE_APP` 环境变量来让 Celery 在实例
-链断开时抛出异常：
+In development you can set the :envvar:`CELERY_TRACE_APP`
+environment variable to raise an exception if the app
+chain breaks:
 
 .. code-block:: console
 
@@ -396,9 +436,11 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
 
 .. topic:: Evolving the API
 
-    Celery 在其诞生至今的七年中发生了很多变化。
+    Celery has changed a lot in the 7 years since it was initially
+    created.
 
-    例如，在 Celery 最初的版本中，任何 callable 对象都能够作为任务使用：
+    For example, in the beginning it was possible to use any callable as
+    a task:
 
     .. code-block:: pycon
 
@@ -409,8 +451,8 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
 
         >>> apply_async(hello, ('world!',))
 
-    或者你也可以根据你的需求来创建一个 Task 类，并在其中重载 Task 的某些
-    行为
+    or you could also create a ``Task`` class to set
+    certain options, or override other behavior
 
     .. code-block:: python
 
@@ -426,9 +468,10 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
 
         >>> Hello.delay('world!')
 
-    后来，我们决定将使用任何 callable 对象来创建任务这一特性列为一种反模
-    式（anti-pattern），因为这个特性导致 Celery 难以使用除 pickle 之外
-    的序列化方式。这个功能在 2.0 之后就被剔除了，取而代之的是装饰器：
+    Later, it was decided that passing arbitrary call-able's
+    was an anti-pattern, since it makes it very hard to use
+    serializers other than pickle, and the feature was removed
+    in 2.0, replaced by task decorators:
 
     .. code-block:: python
 
@@ -438,13 +481,13 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
         def hello(to):
             return 'hello {0}'.format(to)
 
-抽象类任务
+Abstract Tasks
 ==============
 
-所有使用 :meth:`~@task` 装饰器创建的任务都会继承自应用实例中的 :attr:`~@Task`
-类。
+All tasks created using the :meth:`~@task` decorator
+will inherit from the application's base :attr:`~@Task` class.
 
-当然你也可以通过 ``base`` 参数来指定某个任务的父类：
+You can specify a different base class using the ``base`` argument:
 
 .. code-block:: python
 
@@ -452,7 +495,8 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
     def add(x, y):
         return x + y
 
-需要注意的是，任何自定义的任务类都需要继承自 :class:`celery.Task`。
+To create a custom task class you should inherit from the neutral base
+class: :class:`celery.Task`.
 
 .. code-block:: python
 
@@ -467,14 +511,16 @@ Celery 内部使用 :func:`celery.app.app_or_default` 函数来获取当前实�
 
 .. tip::
 
-    确保你在重载了 Task 类的 ``__call__`` 方法的同时调用其父类的 ``__call__`` 方法，
-    因为 Task 类的 ``__call__`` 方法会设置任务被直接调用时使用的默认请求。
+    If you override the tasks ``__call__`` method, then it's very important
+    that you also call super so that the base call method can set up the
+    default request used when a task is called directly.
 
+The neutral base class is special because it's not bound to any specific app
+yet. Once a task is bound to an app it'll read configuration to set default
+values, and so on.
 
-Task 基类的特殊之处在与其没有雨任何一个应用实例进行板顶，因为任务一旦绑定到特定的实例后，其
-就会该实例中的配置。
-
-通过 :meth:`@task` 装饰器能够对某个任务基类进行实例化：
+To realize a base class you need to create a task using the :meth:`@task`
+decorator:
 
 .. code-block:: python
 
@@ -482,7 +528,8 @@ Task 基类的特殊之处在与其没有雨任何一个应用实例进行板顶
     def add(x, y):
         return x + y
 
-你也能够通过更改实例的 :meth:`@Task` 属性来改变实例默认的任务基类：
+It's even possible to change the default base class for an application
+by changing its :meth:`@Task` attribute:
 
 .. code-block:: pycon
 

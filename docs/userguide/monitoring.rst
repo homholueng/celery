@@ -476,12 +476,12 @@ maintaining a Celery cluster.
 * ``celery_tasks``: Monitors the number of times each task type has
   been executed (requires `celerymon`).
 
-    https://github.com/munin-monitoring/contrib/blob/master/plugins/celery/celery_tasks
+    http://exchange.munin-monitoring.org/plugins/celery_tasks-2/details
 
-* ``celery_tasks_states``: Monitors the number of tasks in each state
+* ``celery_task_states``: Monitors the number of tasks in each state
   (requires `celerymon`).
 
-    https://github.com/munin-monitoring/contrib/blob/master/plugins/celery/celery_tasks_states
+    http://exchange.munin-monitoring.org/plugins/celery_tasks/details
 
 .. _monitoring-events:
 
