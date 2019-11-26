@@ -137,7 +137,7 @@ class Context(object):
         return self._children
 
 
-@abstract.CallableTask.register
+@abstract.CallableTask.register  # 使用装饰器来继承抽象类
 @python_2_unicode_compatible
 class Task(object):
     """Task base class.
